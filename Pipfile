@@ -1,0 +1,28 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+httpx = "*"
+parsel = "*"
+rich = "*"
+pydantic = "*"
+pygame = "*"
+mkdocstrings-python = "*"
+mkdocstrings = "*"
+textual = "*"
+sqlalchemy = "*"
+toml = "*"
+
+[dev-packages]
+blue = "*"
+isort = "*"
+ruff = "*"
+pytest = "*"
+mkdocs = "*"
+mkdocs-material = "*"
+textual-dev = "*"
+
+[requires]
+python_version = "3.11"

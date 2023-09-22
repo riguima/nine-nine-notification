@@ -1,0 +1,23 @@
+ProjectWidget {
+  align-horizontal: center;
+  align-vertical: middle;
+  margin-bottom: 1;
+}
+
+Horizontal {
+  align-horizontal: center;
+  align-vertical: middle;
+  height: 3;
+}
+
+#control_buttons {
+  height: 5;
+}
+
+Button {
+  background: blue;
+}
+
+#next {
+  margin-left: 5;
+}
