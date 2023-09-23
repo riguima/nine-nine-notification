@@ -5,14 +5,14 @@ import httpx
 from parsel import Selector
 
 
-def get_projects(page: int = 1) -> list[dict]:
-    with httpx.Client() as client:
+async def get_projects(page: int = 1) -> list[dict]:
+    async with httpx.AsyncClient() as client:
         cookies = httpx.Cookies()
         for cookie in json.load(open('cookies.json')):
             cookies.set(
                 cookie['name'], cookie['value'], domain=cookie['domain']
             )
-        response = client.get(
+        response = await client.get(
             f'https://www.99freelas.com.br/projects?page={page}',
             cookies=cookies,
         )

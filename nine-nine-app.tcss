@@ -11,7 +11,7 @@ Horizontal {
 }
 
 #control_buttons {
-  height: 5;
+  height: 3;
 }
 
 Button {
