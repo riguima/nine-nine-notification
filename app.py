@@ -1,5 +1,6 @@
 import webbrowser
 from asyncio import sleep
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import toml
@@ -20,10 +21,15 @@ mixer.init()
 mixer.music.load('assets/bell.wav')
 
 config_path = Path('config.toml')
-if not config_path.exists():
+if config_path.exists():
+    config = toml.load(open(config_path))
+else:
     file = open(config_path, 'w')
     file.close()
-config = toml.load(open(config_path))
+    config = toml.load(open(config_path))
+    config['filters'] = {}
+    config['filters']['BETWEEN_DAY'] = -1
+    config['filters']['UNTIL_DAY'] = -1
 
 
 class ProjectWidget(Static):
@@ -49,23 +55,32 @@ class FiltersWidget(Static):
             Label('Filtros', id='filters_info'),
             id='filters_info_container',
         )
-        yield Horizontal(Label('Dias'))
         yield Horizontal(
-            Label('De'),
-            Input(validators=[Number(minimum=0)], id='between_day'),
-            Label('Até'),
-            Input(validators=[Number(minimum=0)], id='until_day'),
+            Label('Dias:'),
+            Input(
+                str(config['filters']['BETWEEN_DAY']),
+                placeholder='De',
+                validators=[Number(minimum=0)],
+                id='between_day',
+            ),
+            Input(
+                str(config['filters']['UNTIL_DAY']),
+                placeholder='Até',
+                validators=[Number(minimum=0)],
+                id='until_day',
+            ),
         )
         yield Horizontal(
             Button('Salvar', id='save'),
-            Button('Sair', id='quit'),
             id='save_container',
         )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == 'save':
-            between_day = int(self.query_one('#between_day').value)
-            until_day = int(self.query_one('#until_day').value)
+            between_day_input = self.query_one('#between_day')
+            between_day = int(between_day_input.value) if between_day_input.value else -1
+            until_day_input = self.query_one('#until_day')
+            until_day = int(until_day_input.value) if until_day_input.value else -1
             self.query_one('#filters_info_container').remove_class('error')
             if until_day < between_day:
                 self.query_one('#filters_info').update(
@@ -73,14 +88,12 @@ class FiltersWidget(Static):
                 )
                 self.query_one('#filters_info_container').add_class('error')
             else:
-                if config.get('filters') is None:
-                    config['filters'] = {}
                 config['filters']['BETWEEN_DAY'] = between_day
                 config['filters']['UNTIL_DAY'] = until_day
                 toml.dump(config, open(config_path, 'w'))
                 self.query_one('#filters_info').update('Salvo')
-        elif event.button.id == 'quit':
-            pass
+                self.app.query_one('#projects').remove_children()
+                self.app.refresh_projects()
 
     @on(Input.Changed)
     def show_invalid_reasons(self, event: Input.Changed) -> None:
@@ -102,16 +115,9 @@ class NineNineApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with ScrollableContainer(id='projects'):
-            with Session() as session:
-                query = select(Project).order_by(
-                    Project.publication_datetime.desc()
-                )
-                projects = session.scalars(query).all()[
-                    : self.PAGINATION * self.current_page
-                ]
-                for project in projects:
-                    yield ProjectWidget(project.title, project.url)
+        projects_widget = ScrollableContainer(id='projects')
+        yield projects_widget
+        self.refresh_projects(projects_widget)
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -142,17 +148,15 @@ class NineNineApp(App):
                             )
                             session.add(model)
                             session.commit()
-                            query = select(Project).order_by(
-                                Project.publication_datetime.desc()
-                            )
-                            if session.scalars(query).first() == model:
+                            if self.get_projects_by_filters()[
+                                0
+                            ] == model and not self.query('#save'):
                                 self.refresh_projects()
                                 mixer.music.play()
-            if len(session.scalars(select(Project)).all()) > self.MAX_PROJECTS:
-                query = select(Project).order_by(
-                    Project.publication_datetime.desc()
-                )
-                for model in session.scalars(query).all()[self.MAX_PROJECTS :]:
+            if len(self.get_projects_by_filters()) > self.MAX_PROJECTS:
+                for model in self.get_projects_by_filters()[
+                    self.MAX_PROJECTS :
+                ]:
                     session.delete(model)
                 session.commit()
             await sleep(60)
@@ -162,29 +166,57 @@ class NineNineApp(App):
         self.refresh_projects()
 
     def action_next(self) -> None:
-        with Session() as session:
-            number_of_projects = len(session.scalars(select(Project)).all())
-            number_of_pages = number_of_projects // 20
-            if number_of_projects % 20 != 0:
-                number_of_pages += 1
-            self.current_page = min(self.current_page + 1, number_of_pages)
+        number_of_projects = len(self.get_projects_by_filters())
+        number_of_pages = number_of_projects // 20
+        if number_of_projects % 20 != 0:
+            number_of_pages += 1
+        self.current_page = min(self.current_page + 1, number_of_pages)
         self.refresh_projects()
 
-    def refresh_projects(self) -> None:
-        with Session() as session:
+    def refresh_projects(
+        self, projects_widget: ScrollableContainer = None
+    ) -> None:
+        if projects_widget is None:
             projects_widget = self.query_one('#projects')
-            projects_widget.remove_children()
-            index = self.PAGINATION * self.current_page
-            query = select(Project).order_by(
-                Project.publication_datetime.desc()
+        projects_widget.remove_children()
+        index = self.PAGINATION * self.current_page
+        projects = self.get_projects_by_filters()[
+            index - self.PAGINATION : index
+        ]
+        for project in projects:
+            between_day = config['filters']['BETWEEN_DAY']
+            until_day = config['filters']['UNTIL_DAY']
+            publication_timedelta = (
+                datetime.now() - project.publication_datetime
             )
-            projects = session.scalars(query).all()[
-                index - self.PAGINATION : index
-            ]
-            for project in projects:
+            if (
+                between_day == -1
+                or publication_timedelta >= timedelta(days=between_day)
+            ) and (
+                until_day == -1
+                or publication_timedelta <= timedelta(days=until_day)
+            ):
                 projects_widget.mount(
                     ProjectWidget(project.title, project.url)
                 )
+
+    def get_projects_by_filters(self) -> list[Project]:
+        with Session() as session:
+            between_day = config['filters']['BETWEEN_DAY']
+            until_day = config['filters']['UNTIL_DAY']
+            query = select(Project)
+            if between_day != -1:
+                query = query.where(
+                    Project.publication_datetime
+                    <= (datetime.now() - timedelta(days=between_day))
+                )
+            if until_day != -1:
+                query = query.where(
+                    Project.publication_datetime
+                    >= (datetime.now() - timedelta(days=until_day))
+                )
+            query = query.order_by(Project.publication_datetime.desc())
+            return session.scalars(query).all()
 
     def action_toggle_dark(self) -> None:
         self.dark = not self.dark
