@@ -4,6 +4,10 @@ ProjectWidget {
   margin-bottom: 1;
 }
 
+Input {
+  width: 10;
+}
+
 Horizontal {
   align-horizontal: center;
   align-vertical: middle;
@@ -20,4 +24,17 @@ Button {
 
 #next {
   margin-left: 5;
+}
+
+#save_container {
+  margin-top: 3;
+}
+
+#save {
+  margin-right: 2;
+}
+
+.error {
+  background: red;
+  color: white;
 }
