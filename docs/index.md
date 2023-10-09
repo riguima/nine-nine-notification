@@ -1,6 +1,6 @@
 # Nine Nine Notification
 
-Aplicação CLI que te alerta quando novos projetos aparecerem
+Aplicação TUI que te alerta quando novos projetos aparecerem
 
 Você consegue adicionar vários filtros além dos disponíveis no site
 
@@ -18,11 +18,10 @@ Instalando as dependências
 $ pip install -r requirements.txt
 ```
 
-Criando um `alias` para o comando
+Rode o arquivo `app.py`
 
-``` bash title=".bashrc"
-# ...
-alias nnn='/home/user/nine-nine-notification/main.py'
+```
+$ python3 app.py
 ```
 
 ## Cookies
@@ -37,37 +36,3 @@ Instale a extensão para exportar os cookies:
 Depois faça login na sua conta da 99freelas e gere o arquivo JSON dos cookies da página do 99freelas
 
 Renomeie o arquivo para `cookies.json` e mova para a raiz do projeto
-
-## Como Usar
-
-### Filtro data relativa
-
-Para notificar para projetos com data de publicação a mais de 1 dia
-
-``` bash
-$ nnn >1d
-```
-
-Até 1 dia
-
-``` bash
-$ nnn <=1d
-```
-
-Entre 1 e 3 dias
-
-``` bash
-$ nnn 1d-3d
-```
-
-funciona para minutos `5m` e horas `4h`
-
-### Filtro data especifica
-
-Para notificar projetos de uma data especifica, rode
-
-``` bash
-$ nnn 2023-05-07
-```
-
-Seguindo o padrão internacional para datas `YYYY-MM-DD`
